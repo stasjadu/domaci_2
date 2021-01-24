@@ -194,14 +194,11 @@ static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)
 	iowrite32(data0 | XIL_AXI_TIMER_CSR_INT_OCCURED_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	
-	// Disable Timer 
-		printk(KERN_NOTICE "xilaxitimer_isr: All of the interrupts have occurred. Disabling timer\n");
-		data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
-		iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
-			  tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+	if(data0 == 0xffffffff){ //maximum of 32bit
+		printk(KERN_NOTICE "xilaxitimer_isr: Timer overflow. Disabling timer\n");
 		data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 		iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK), tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-		
+	}
 	return IRQ_HANDLED;
 }
 //***************************************************
@@ -358,41 +355,93 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 {
 
 	//printk(KERN_INFO "Succesfully read timer\n");
-	return 0;
+	unsigned int hours, min, sec, milisec, microsec=0;
+	unsigned int rem_time=0;
+	unsigned int data0 = 0;
+	unsigned int data1=0;
+	unsigned int data_compare=0;
+	int ret;
+	long int len=0;
+	char buff[BUFF_SIZE];
+	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET);
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
+	data_compare = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET);
+	
+	do
+	{
+    		data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCR0_OFFSET);
+		data1=data_compare;
+		data_compare=ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET);
+
+	} while( data_compare!=data1) ;
+	rem_time=rem_time+data1;
+	rem_time =(rem_time << 32) + data0;
+	
+	microsec=(data0/100 + data1*42949673)%1000;
+	milisec=(data0/100000 + data1*42950)%1000;
+	sec=(data0/100000000 + data1*43)%60;
+	min=((data0/100000000 + data1*43)/60)%60;
+	hours=((data0/100000000 + data1*43)/60)/60;
+		
+		
+len=scnprintf(buff,BUFF_SIZE, "%u:%u:%u.%u,%u\n", hours, min, sec, milisec, microsec);
+ret=copy_to_user(buffer, buff, len);
+ 	if(ret)
+		return -EFAULT;
+ 	endRead=1;
+ 	return len;
+	printk(KERN_INFO "Succesfully read timer\n");
+}
 }
 
 ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) 
 {
 	char buff[BUFF_SIZE];
-	int millis = 0;
-	int number = 0;
 	int ret = 0;
 	ret = copy_from_user(buff, buffer, length);
 	if(ret)
 		return -EFAULT;
 	buff[length] = '\0';
+	setup_timer(timer0_load, timer1_load);
 
-	ret = sscanf(buff,"%d,%d",&number,&millis);
-	if(ret == 2)//two parameters parsed in sscanf
-	{
-
-		if (millis > 40000)
+	if(!(strncmp(buff,"start",5)))
+  	{
+		if(run==0){
+   	 	printk(KERN_INFO "Starting timer\n");
+    		start_timer();
+		}
+  		else
 		{
-			printk(KERN_WARNING "xilaxitimer_write: Maximum period exceeded, enter something less than 40000 \n");
+		printk(KERN_INFO "Timer has already started\n");
+		}	
+	}
+	else if(!(strncmp(buff,"stop",4)))
+	{
+		if(run==1){
+ 	 		printk(KERN_INFO "Stopping timer\n");
+			stop_timer();
 		}
 		else
 		{
-			printk(KERN_INFO "xilaxitimer_write: Starting timer for %d interrupts. One every %d miliseconds \n",number,millis);
-			i_num = number;
-			setup_and_start_timer(millis);
+			printk(KERN_INFO "Timer has already stopped\n");
 		}
-
+	}
+	else if(!(strncmp(buff,"reset",5)))
+	{
+		data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+		data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+   		iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
+   			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+		iowrite32(data1 | XIL_AXI_TIMER_CSR_LOAD_MASK,
+			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
+			printk(KERN_INFO "Resetting timer\n");
+			reset_timer();
 	}
 	else
 	{
-		printk(KERN_WARNING "xilaxitimer_write: Wrong format, expected n,t \n\t n-number of interrupts\n\t t-time in ms between interrupts\n");
+		printk(KERN_WARNING "Wrong format: expected 'start', 'stop' or 'reset'.\n");
 	}
-	return length;
+		return length;
 }
 
 //***************************************************
