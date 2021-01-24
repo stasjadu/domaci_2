@@ -105,6 +105,7 @@ static struct platform_driver timer_driver = {
 
 
 MODULE_DEVICE_TABLE(of, timer_of_match);
+
 //Function for starting timer
 static void start_timer()
 {
@@ -116,6 +117,7 @@ static void start_timer()
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	
 	printk(KERN_INFO "Timer has started.\n");
+}
 //Function for stopping timer
 static void stop_timer()
 {
@@ -134,7 +136,7 @@ static void stop_timer()
 }
 	
 static void reset_timer()
- {
+{
 	unsigned int data0 = 0;
   	unsigned int data1 = 0;
   	
@@ -170,8 +172,8 @@ static void reset_timer()
 
 static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)		
 {      
-	unsigned int data = 0;
-	unsigned int data1 = 0;//upper 32-bits
+	unsigned int data0 = 0;//lower 32b
+	unsigned int data1 = 0;//upper 32b
 	unsigned int data_compare=0; 
 
 	// Check Timer Counter Value
@@ -206,7 +208,8 @@ static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)
 
 static void setup_timer(unsigned int timer0_load, unsigned int timer1_load)
 {
-	unsigned int data = 0;
+	unsigned int data0 = 0;
+	unsigned int data1=0;
 
 	// Disable timer/counter while configuration is in progress
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
@@ -222,14 +225,14 @@ static void setup_timer(unsigned int timer0_load, unsigned int timer1_load)
 
 	// Load initial value into counter from load register
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data | XIL_AXI_TIMER_CSR_LOAD_MASK,
+	iowrite32(data0 | XIL_AXI_TIMER_CSR_LOAD_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);	
 	iowrite32(data1 | XIL_AXI_TIMER_CSR_LOAD_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
+	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 	iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_LOAD_MASK),
@@ -240,7 +243,7 @@ static void setup_timer(unsigned int timer0_load, unsigned int timer1_load)
 
 	// Start Timer bz setting enable signal; Only TCSR0 in cascade mode
 	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-	iowrite32(data | XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK,
+	iowrite32(data0 | XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK,
 			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	printk(KERN_INFO "Timer is set up.\n");
 
@@ -396,12 +399,15 @@ ret=copy_to_user(buffer, buff, len);
 
 ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) 
 {
+	unsigned int data0=0;
+	unsigned int data1=0;
 	char buff[BUFF_SIZE];
 	int ret = 0;
 	ret = copy_from_user(buff, buffer, length);
 	if(ret)
 		return -EFAULT;
 	buff[length] = '\0';
+	
 	setup_timer(timer0_load, timer1_load);
 
 	if(!(strncmp(buff,"start",5)))
