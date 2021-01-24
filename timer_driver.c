@@ -95,14 +95,13 @@ static struct of_device_id timer_of_match[] = {
 
 static struct platform_driver timer_driver = {
 	.driver = {
-	.name = DRIVER_NAME,
-	.owner = THIS_MODULE,
-	.of_match_table	= timer_of_match,
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table	= timer_of_match,
 	},
-	.probe= timer_probe,
-	.remove= timer_remove,
+	.probe		= timer_probe,
+	.remove		= timer_remove,
 };
-
 
 MODULE_DEVICE_TABLE(of, timer_of_match);
 
