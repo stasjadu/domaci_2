@@ -370,7 +370,7 @@ int timer_close(struct inode *pinode, struct file *pfile)
 ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_t *offset) 
 {
 	unsigned int hours, min, sec, milisec, microsec=0;
-	unsigned int rem_time=0;
+	//unsigned int rem_time=0;
 	unsigned int data0 = 0;
 	unsigned int data1=0;
 	unsigned int data_compare=0;
@@ -388,8 +388,8 @@ ssize_t timer_read(struct file *pfile, char __user *buffer, size_t length, loff_
 		data_compare=ioread32(tp->base_addr + XIL_AXI_TIMER_TCR1_OFFSET);
 
 	} while( data_compare!=data1) ;
-	rem_time=rem_time+data1;
-	rem_time =(rem_time << 32) + data0;
+	//rem_time=rem_time+data1;
+	//rem_time =(rem_time << 32) + data0;
 	
 	microsec=(data0/100 + data1*42949673)%1000;
 	milisec=(data0/100000 + data1*42950)%1000;
