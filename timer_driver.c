@@ -324,10 +324,10 @@ error1:
 static int timer_remove(struct platform_device *pdev)
 {
 	// Disable timer
-	unsigned int data=0;
-	data = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
-	iowrite32(data & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
-			tp->base_addr + XIL_AXI_TIMER_TCSR_OFFSET);
+	unsigned int data0=0;
+	data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
+	iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
+			tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 	// Free resources taken in probe
 	free_irq(tp->irq_num, NULL);
 	iowrite32(0, tp->base_addr);
@@ -394,7 +394,7 @@ ret=copy_to_user(buffer, buff, len);
  	endRead=1;
  	return len;
 	printk(KERN_INFO "Succesfully read timer\n");
-}
+
 }
 
 ssize_t timer_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) 
