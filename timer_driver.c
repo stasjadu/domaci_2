@@ -199,13 +199,14 @@ static irqreturn_t xilaxitimer_isr(int irq,void*dev_id)
 	
 	
 	// Disable Timer 
+		if(data == 0xffffffff){ //maximum of 32bit
 		printk(KERN_NOTICE "xilaxitimer_isr: All of the interrupts have occurred. Disabling timer\n");
 		data1 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 		iowrite32(data1 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK),
 			  tp->base_addr + XIL_AXI_TIMER_TCSR1_OFFSET);
 		data0 = ioread32(tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
 		iowrite32(data0 & ~(XIL_AXI_TIMER_CSR_ENABLE_TMR_MASK), tp->base_addr + XIL_AXI_TIMER_TCSR0_OFFSET);
-		
+		}
 		
 	return IRQ_HANDLED;
 }
